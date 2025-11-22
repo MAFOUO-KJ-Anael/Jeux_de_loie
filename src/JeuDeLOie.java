@@ -220,20 +220,28 @@ class GamePanel extends JPanel {
         specialMoves.clear();
         if (cfg.level.equals("FACILE")) {
             finalSquare = 47;
-            specialMoves.put(5, 14);
-            specialMoves.put(12, 7);
-            specialMoves.put(22, 33);
-            specialMoves.put(36, 28);
+            specialMoves.put(4, 7);
+            specialMoves.put(9, 29);
+            specialMoves.put(22, 17);
+            specialMoves.put(43, 33);
         } else {
             finalSquare = 100;
-            specialMoves.put(3, 22);
-            specialMoves.put(27, 5);
-            specialMoves.put(29, 14);
-            specialMoves.put(51, 67);
-            specialMoves.put(62, 19);
-            specialMoves.put(80, 99);
-            specialMoves.put(92, 68);
-            specialMoves.put(97, 78);
+            specialMoves.put(9, 27);
+            specialMoves.put(18, 37);
+            specialMoves.put(25, 54);
+            specialMoves.put(28, 51);
+            specialMoves.put(56, 64);
+            specialMoves.put(68, 88);
+            specialMoves.put(76, 97);
+            specialMoves.put(79, 100);
+            specialMoves.put(16, 7);
+            specialMoves.put(59, 17);
+            specialMoves.put(63, 19);
+            specialMoves.put(67, 30);
+            specialMoves.put(87, 24);
+            specialMoves.put(93, 69);
+            specialMoves.put(95, 75);
+            specialMoves.put(99, 77);
         }
 
         players = new ArrayList<>();
