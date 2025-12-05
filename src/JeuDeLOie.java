@@ -41,6 +41,7 @@ class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(900, 900);
         setLocationRelativeTo(null);
+        setResizable(false);
 
         menuPanel = new MenuPanel(this);
         newGamePanel = new NewGamePanel(this);
@@ -156,6 +157,8 @@ class NewGamePanel extends JPanel {
 /* ---------- GamePanel: logique du jeu et rendu ---------- */
 class GamePanel extends JPanel {
     private int targetPosition;
+    //  Coordonnées exactes du plateau d'un niveau (FACILE (index 1..47))
+    private Point[] easyBoardCoords = new Point[49];
     private static final long serialVersionUID = 1L;
 
     MainFrame parent;
@@ -201,6 +204,58 @@ class GamePanel extends JPanel {
         add(back);
     }
 
+    private void initEasyBoardCoords() {
+            easyBoardCoords[0] = new Point(382, 588);
+            easyBoardCoords[1] = new Point(400, 534);
+            easyBoardCoords[2] = new Point(400, 504);
+            easyBoardCoords[3] = new Point(399, 468);
+            easyBoardCoords[4] = new Point(388, 438);
+            easyBoardCoords[5] = new Point(373, 406);
+            easyBoardCoords[6] = new Point(364, 373);
+            easyBoardCoords[7] = new Point(378, 343);
+            easyBoardCoords[8] = new Point(418, 328);
+            easyBoardCoords[9] = new Point(459, 334);
+            easyBoardCoords[10] = new Point(484, 363);
+            easyBoardCoords[11] = new Point(480, 397);
+            easyBoardCoords[12] = new Point(469, 427);
+            easyBoardCoords[13] = new Point(460, 460);
+            easyBoardCoords[14] = new Point(460, 496);
+            easyBoardCoords[15] = new Point(457, 531);
+            easyBoardCoords[16] = new Point(460, 562);
+            easyBoardCoords[17] = new Point(480, 597);
+            easyBoardCoords[18] = new Point(511, 609);
+            easyBoardCoords[19] = new Point(546, 607);
+            easyBoardCoords[20] = new Point(576, 589);
+            easyBoardCoords[21] = new Point(580, 556);
+            easyBoardCoords[22] = new Point(562, 525);
+            easyBoardCoords[23] = new Point(547, 492);
+            easyBoardCoords[24] = new Point(537, 457);
+            easyBoardCoords[25] = new Point(525, 429);
+            easyBoardCoords[26] = new Point(519, 396);
+            easyBoardCoords[27] = new Point(514, 364);
+            easyBoardCoords[28] = new Point(538, 334);
+            easyBoardCoords[29] = new Point(588, 324);
+            easyBoardCoords[30] = new Point(633, 336);
+            easyBoardCoords[31] = new Point(654, 373);
+            easyBoardCoords[32] = new Point(646, 412);
+            easyBoardCoords[33] = new Point(634, 447);
+            easyBoardCoords[34] = new Point(625, 480);
+            easyBoardCoords[35] = new Point(621, 514);
+            easyBoardCoords[36] = new Point(618, 549);
+            easyBoardCoords[37] = new Point(624, 586);
+            easyBoardCoords[38] = new Point(654, 607);
+            easyBoardCoords[39] = new Point(687, 610);
+            easyBoardCoords[40] = new Point(723, 603);
+            easyBoardCoords[41] = new Point(748, 585);
+            easyBoardCoords[42] = new Point(753, 552);
+            easyBoardCoords[43] = new Point(738, 529);
+            easyBoardCoords[44] = new Point(718, 498);
+            easyBoardCoords[45] = new Point(711, 472);
+            easyBoardCoords[46] = new Point(709, 442);
+            easyBoardCoords[47] = new Point(712, 411);
+            easyBoardCoords[48] = new Point(720, 361);
+        }
+
     void startNewGame(GameConfig c) {
         this.cfg = c;
 
@@ -215,6 +270,10 @@ class GamePanel extends JPanel {
             g.setColor(Color.LIGHT_GRAY); g.fillRect(0,0,800,800);
             g.setColor(Color.BLACK); g.drawString("Image de plateau non trouvée dans ./assets/",10,20);
             g.dispose();
+        }
+
+        if(cfg.level.equals("FACILE")) {
+            initEasyBoardCoords();
         }
 
         specialMoves.clear();
@@ -383,7 +442,12 @@ class GamePanel extends JPanel {
             g.drawImage(boardImage, 200, 10, bw, bh, null);
 
             for (Player p : players) {
-                Point pt = positionToPoint(p.position, 200, 10, bw, bh);
+                Point pt;
+                if (cfg.level.equals("FACILE")) {
+                    pt = easyBoardCoords[p.position];
+                } else {
+                    pt = positionToPoint(p.position, 200, 10, bw, bh);
+                }
                 g.setColor(p.color);
                 g.fillOval(pt.x-10, pt.y-10, 20, 20);
                 g.setColor(Color.BLACK);
