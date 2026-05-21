@@ -156,6 +156,7 @@ class NewGamePanel extends JPanel {
 
 /* ---------- GamePanel: logique du jeu et rendu ---------- */
 class GamePanel extends JPanel {
+    javax.swing.Timer aiTimer;
     private int targetPosition;
     //  Coordonnées exactes du plateau d'un niveau (FACILE (index 1..47))
     private Point[] easyBoardCoords = new Point[49];
@@ -309,7 +310,7 @@ class GamePanel extends JPanel {
             players.add(new Player("J"+(i+1), pawnColors[i], true));
 
         if (cfg.includeAI)
-            players.add(new Player("AI", pawnColors[Math.min(n,3)], false));
+            players.add(new Player("IA", pawnColors[Math.min(n,3)], false));
 
         currentPlayer = 0;
         statusLabel.setText("Tour de " + players.get(currentPlayer).name);
@@ -388,21 +389,25 @@ class GamePanel extends JPanel {
             int finalScore = p.score;
             JOptionPane.showMessageDialog(this,
                     p.name + " a gagné! Score = " + finalScore);
+            
+            if (!p.human) {
+                scoreManager.addScore("IA_WIN", finalScore);
+            } else {
+                if (scoreManager.isTopScore(finalScore)) {
+                    String initials = JOptionPane.showInputDialog(this,
+                        "Entrer vos initiales (3 lettres)", "WINNER",
+                        JOptionPane.PLAIN_MESSAGE);
 
-            if (scoreManager.isTopScore(finalScore)) {
-                String initials = JOptionPane.showInputDialog(this,
-                    "Entrer vos initiales (3 lettres)", "WINNER",
-                    JOptionPane.PLAIN_MESSAGE);
-
-                if (initials != null) {
-                    initials = initials.trim().toUpperCase();
-                    if (initials.length() > 3)
-                        initials = initials.substring(0, 3);
-                    scoreManager.addScore(initials, finalScore);
+                    if (initials != null) {
+                        initials = initials.trim().toUpperCase();
+                        if (initials.length() > 3)
+                            initials = initials.substring(0, 3);
+                        scoreManager.addScore(initials, finalScore);
+                    }
                 }
             }
 
-            scoreManager.saveScores();
+            //scoreManager.saveScores();
             parent.showStats();
             return;
         }
@@ -413,7 +418,30 @@ class GamePanel extends JPanel {
             "  |  Tour de " + players.get(currentPlayer).name
         );
 
+        //  Si le prochain joueur est IA -> jouer automatiquement après 1.5s
+        scheduleAIIfNeeded();
+
         repaint();
+    }
+
+    void scheduleAIIfNeeded() {
+        Player next = players.get(currentPlayer);
+
+        if (!next.human) {
+            rollBtn.setEnabled(false);  // Disable the button to AI turn
+
+            //  Timer à usage unique : se déclenche une seule fois après 1500mS
+            if(aiTimer != null && aiTimer.isRunning())
+                aiTimer.stop();
+
+            aiTimer = new javax.swing.Timer(1500, e -> {
+                aiTimer.stop();
+                rollBtn.setEnabled(true);
+                doRoll();
+            });
+            aiTimer.setRepeats(false);
+            aiTimer.start();
+        }
     }
 
     void showDiceFace(int n){
@@ -516,58 +544,148 @@ class Player {
 
 /* ---------- ScoreManager: gère top 10 sauvegardés ---------- */
 class ScoreManager {
+
+    private static final int MAX_SCORES = 10;
+    private static final String DEFAULT_NAME = "---";
+    /* Préparation et création du fichier score.dat */
     private final String file = "scores.dat";
-    List<ScoreEntry> top = new ArrayList<>();
 
-    ScoreManager(){ loadScores(); }
+    /* Entrée des données dans score.dat en haut */
+    private List<ScoreEntry> top;
 
-    @SuppressWarnings("unchecked")
-    void loadScores(){
-        File f = new File(file);
-        if (!f.exists()) {
-            top = new ArrayList<>();
-            for (int i=0;i<10;i++)
-                top.add(new ScoreEntry("---",0));
-            return;
-        }
-        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(f))) {
-            top = (List<ScoreEntry>) in.readObject();
-        } catch(Exception e) {
-            top = new ArrayList<>();
-            for (int i=0;i<10;i++)
-                top.add(new ScoreEntry("---",0));
-        }
+    ScoreManager(){ 
+        top = loadScores(); 
     }
 
-    void saveScores(){
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(file))) {
-            out.writeObject(top);
+    /*==============================================================
+    LOAD PIPELINE 
+        file -> RAM Array
+    ==============================================================*/
+    @SuppressWarnings("unchecked")
+    /* Lecture de score.dat */
+    List<ScoreEntry> loadScores(){
+        //  File doesn't exist -> create default leaderboard
+        File f = new File(file);                
+        if (!f.exists()) {                      //  Recréation en cas de non existance
+            List<ScoreEntry> defaultScores = createDefaultScores();
+            saveScores(defaultScores);
+            return defaultScores;
+        }
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(f))) {
+            Object obj = in.readObject();
+            if (obj instanceof List<?>) {
+                List<?> rawList = (List<?>) obj;
+                List<ScoreEntry> loaded = new ArrayList<>();
+                for (Object o : rawList) {
+                    if (o instanceof ScoreEntry entry) {
+                        loaded.add(entry);
+                    }
+                }
+                sortScores(loaded);
+                return trimTop10(loaded);
+            }
         } catch(Exception e) {
+            System.out.println("[LOAD ERROR]");
+            e.printStackTrace();
+        }
+
+        //  Fallbacj if corrupted file
+        List<ScoreEntry> fallback = createDefaultScores();
+        saveScores(fallback);
+        return fallback;
+    }
+
+    /*=====================================================================================
+    SAVE PIPELINE
+        RAM -> file overwrite
+    ==================================================================================== */
+    void saveScores(List<ScoreEntry> scores){
+        try (ObjectOutputStream out = 
+            new ObjectOutputStream(new FileOutputStream(file))) {
+            out.writeObject(scores);
+        } catch(Exception e) {
+            System.out.println("[SAVE ERROR]");
             e.printStackTrace();
         }
     }
 
-    boolean isTopScore(int s){
-        loadScores();
-        for (ScoreEntry e : top)
-            if (s >= e.score) return true;
+    //  PUBLIC API
+    List<ScoreEntry> getTop() {
+        top = loadScores();
+        return new ArrayList<>(top);
+    }
+
+    boolean isTopScore(int score){
+        List<ScoreEntry> current = loadScores();
+        for (ScoreEntry e : current)
+            if (score >= e.score) return true;
         return false;
     }
 
+    //  MAIN UPDATE PIPELINE
     void addScore(String initials, int s){
-        loadScores();
-        top.add(new ScoreEntry(initials, s));
-        top.sort((a,b)->Integer.compare(b.score, a.score));
-
-        if (top.size()>10)
-            top = top.subList(0, 10);
-
-        saveScores();
+        // STEP 1:  Load original leaderboard
+        List<ScoreEntry> originalScores = loadScores();
+        //  STEP 2: Create SAFE WORKING COPY
+        List<ScoreEntry> workingScores = deepCopyScores(originalScores);
+        //  STEP 3: Insert new candidate
+        workingScores.add(new ScoreEntry(initials, s));
+        //  STEP 4: Sort complete leaderrboard
+        sortScores(workingScores);
+        //  STEP 5: Keep only top 10
+        workingScores = trimTop10(workingScores);
+        //  STEP 6: Compare old vs new state
+        boolean changed = !workingScores.equals(originalScores);
+        //  STEP 7: SAVE ONLY if leaderboard changed
+        if (changed) {
+            saveScores(workingScores);
+            top = workingScores;
+            System.out.println("[LEADERBOARD UPDATED]");
+        } else {
+            System.out.println("[NO CHANGES DETECTED]");
+        }
     }
 
-    List<ScoreEntry> getTop(){
-        loadScores();
-        return top;
+    //  SORTING
+    private void sortScores(List<ScoreEntry> scores) {
+        scores.sort((a, b) -> {
+            int scoreCompare = Integer.compare(b.score, a.score);
+            // Tie breaker: alphabetical order
+            if (scoreCompare == 0) {
+                return a.name.compareTo(b.name);
+            }
+            return scoreCompare;
+        });
+    }
+
+    //  TOP10 LIMIT
+    private List<ScoreEntry> trimTop10(
+            List<ScoreEntry> scores) {
+        if (scores.size() <= MAX_SCORES) {
+            return new ArrayList<>(scores);
+        }
+        return new ArrayList<>(
+            scores.subList(0, MAX_SCORES)
+        );
+    }
+
+    //  SAFE COPY
+    private List<ScoreEntry> deepCopyScores(
+            List<ScoreEntry> source) {
+        List<ScoreEntry> copy = new ArrayList<>();
+        for (ScoreEntry e : source) {
+            copy.add(new ScoreEntry(e.name, e.score));
+        }
+        return copy;
+    }
+
+    //  DEFAULT LEADERBOARD
+    private List<ScoreEntry> createDefaultScores() {
+        List<ScoreEntry> defaults = new ArrayList<>();
+        for (int i = 0; i < MAX_SCORES; i++) {
+            defaults.add(new ScoreEntry(DEFAULT_NAME, 0));
+        }
+        return defaults;
     }
 }
 
@@ -580,6 +698,19 @@ class ScoreEntry implements Serializable {
     ScoreEntry(String n, int s){
         name = n;
         score = s;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        ScoreEntry other = (ScoreEntry) obj;
+        return score == other.score && Objects.equals(name, other.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, score);
     }
 }
 

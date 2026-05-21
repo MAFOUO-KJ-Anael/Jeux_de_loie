@@ -9,27 +9,31 @@
             "name": "JeuDeLOie",
             "request": "launch",
             "mainClass": "src.JeuDeLOie",
-            "projectName": "Jeux_de_loie_c693aff9"
+            "projectName": "Jeux_de_loie_c693aff9",
+            "vmArgs": "-Xms123m -Xmx512m"
         },
         {
             "type": "java",
             "name": "JeuDeLOie",
             "request": "launch",
             "mainClass": "src.JeuDeLOie",
-            "projectName": "Java_8fc617d2"
+            "projectName": "Java_8fc617d2",
+            "vmArgs": "-Xms123m -Xmx512m"
         },
         {
             "type": "java",
             "name": "JeuDeLOie",
             "request": "launch",
             "mainClass": "JeuDeLOie",
-            "projectName": "Java_8fc617d2"
+            "projectName": "Java_8fc617d2",
+            "vmArgs": "-Xms123m -Xmx512m"
         },
         {
             "type": "java",
             "name": "Current File",
             "request": "launch",
-            "mainClass": "${file}"
+            "mainClass": "${file}",
+            "vmArgs": "-Xms123m -Xmx512m"
         }
     ]
 }
